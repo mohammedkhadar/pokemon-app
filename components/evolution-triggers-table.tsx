@@ -273,8 +273,22 @@ export default function EvolutionTriggersTable() {
               Previous
             </Button>
             <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
-                const pageNum = Math.max(1, Math.min(currentPage - 1 + i, totalPages - 2 + i))
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum
+                if (totalPages <= 5) {
+                  // If total pages is 5 or less, show all pages
+                  pageNum = i + 1
+                } else if (currentPage <= 3) {
+                  // If current page is near the beginning, show 1-5
+                  pageNum = i + 1
+                } else if (currentPage >= totalPages - 2) {
+                  // If current page is near the end, show last 5 pages
+                  pageNum = totalPages - 4 + i
+                } else {
+                  // If current page is in the middle, show current page ± 2
+                  pageNum = currentPage - 2 + i
+                }
+
                 return (
                   <Button
                     key={pageNum}
