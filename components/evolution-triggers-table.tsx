@@ -1,11 +1,20 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  flexRender,
+  createColumnHelper,
+  type ColumnDef,
+  type SortingState,
+} from "@tanstack/react-table"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 
 interface EvolutionTrigger {
   id: number
@@ -32,15 +41,118 @@ interface EvolutionTriggersResponse {
   }>
 }
 
+const columnHelper = createColumnHelper<EvolutionTrigger>()
+
 export default function EvolutionTriggersTable() {
   const [triggers, setTriggers] = useState<EvolutionTrigger[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
+  const [sorting, setSorting] = useState<SortingState>([])
 
   const limit = 10
   const offset = (currentPage - 1) * limit
+
+  const columns = useMemo<ColumnDef<EvolutionTrigger>[]>(
+    () => [
+      columnHelper.accessor("id", {
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-auto p-0 font-semibold"
+          >
+            ID
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="ml-2 h-4 w-4" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="ml-2 h-4 w-4" />
+            ) : (
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            )}
+          </Button>
+        ),
+        cell: ({ getValue }) => <span className="font-mono">#{getValue()}</span>,
+        sortingFn: "basic",
+      }),
+      columnHelper.accessor("name", {
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-auto p-0 font-semibold"
+          >
+            Name
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="ml-2 h-4 w-4" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="ml-2 h-4 w-4" />
+            ) : (
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            )}
+          </Button>
+        ),
+        cell: ({ getValue }) => <span className="font-medium capitalize">{getValue().replace("-", " ")}</span>,
+        sortingFn: "alphanumeric",
+      }),
+      columnHelper.accessor((row) => row.names.find((n) => n.language.name === "en")?.name || row.name, {
+        id: "displayName",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-auto p-0 font-semibold"
+          >
+            Display Name
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="ml-2 h-4 w-4" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="ml-2 h-4 w-4" />
+            ) : (
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            )}
+          </Button>
+        ),
+        cell: ({ getValue }) => getValue(),
+        sortingFn: "alphanumeric",
+      }),
+      columnHelper.accessor((row) => row.pokemon_species.length, {
+        id: "speciesCount",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-auto p-0 font-semibold"
+          >
+            Species Count
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="ml-2 h-4 w-4" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="ml-2 h-4 w-4" />
+            ) : (
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            )}
+          </Button>
+        ),
+        cell: ({ getValue }) => <span className="text-muted-foreground">{getValue()} species</span>,
+        sortingFn: "basic",
+      }),
+    ],
+    [],
+  )
+
+  const table = useReactTable({
+    data: triggers,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    state: {
+      sorting,
+    },
+    onSortingChange: setSorting,
+    enableSortingRemoval: true,
+  })
 
   useEffect(() => {
     fetchEvolutionTriggers()
@@ -50,7 +162,6 @@ export default function EvolutionTriggersTable() {
     setLoading(true)
     setError(null)
     try {
-      // First, get the list of evolution triggers
       const listResponse = await fetch(`https://pokeapi.co/api/v2/evolution-trigger?limit=${limit}&offset=${offset}`)
       if (!listResponse.ok) {
         throw new Error("Failed to fetch evolution triggers list")
@@ -58,7 +169,6 @@ export default function EvolutionTriggersTable() {
       const listData: EvolutionTriggersResponse = await listResponse.json()
       setTotalCount(listData.count)
 
-      // Then, fetch detailed information for each trigger
       const detailedTriggers = await Promise.all(
         listData.results.map(async (trigger) => {
           const detailResponse = await fetch(trigger.url)
@@ -125,27 +235,24 @@ export default function EvolutionTriggersTable() {
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Display Name</TableHead>
-                <TableHead>Species Count</TableHead>
-              </TableRow>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id} className="font-semibold">
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
             </TableHeader>
             <TableBody>
-              {triggers.map((trigger) => {
-                const englishName = trigger.names.find((n) => n.language.name === "en")?.name || trigger.name
-                return (
-                  <TableRow key={trigger.id}>
-                    <TableCell className="font-mono">#{trigger.id}</TableCell>
-                    <TableCell className="font-medium capitalize">{trigger.name.replace("-", " ")}</TableCell>
-                    <TableCell>{englishName}</TableCell>
-                    <TableCell>
-                      <span className="text-muted-foreground">{trigger.pokemon_species.length} species</span>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
+              {table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                  ))}
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </div>

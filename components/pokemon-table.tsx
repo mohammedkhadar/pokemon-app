@@ -1,19 +1,28 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  flexRender,
+  createColumnHelper,
+  type ColumnDef,
+  type SortingState,
+} from "@tanstack/react-table"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import PokemonModal from "./pokemon-modal"
 
 interface Pokemon {
   name: string
   url: string
+  id: number
 }
 
 interface PokemonListResponse {
@@ -30,21 +39,115 @@ interface PokemonTableProps {
   searchQuery: string
 }
 
+const columnHelper = createColumnHelper<Pokemon>()
+
 export default function PokemonTable({ pokemonData, searchResult, currentPage, searchQuery }: PokemonTableProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [selectedPokemon, setSelectedPokemon] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState(searchQuery)
+  const [sorting, setSorting] = useState<SortingState>([])
 
   const limit = 20
-  const totalPages = Math.ceil(pokemonData.count / limit)
+
+  // Transform data to include IDs for TanStack Table
+  const tableData = useMemo(() => {
+    if (searchResult) {
+      return [
+        {
+          name: searchResult.name,
+          url: `https://pokeapi.co/api/v2/pokemon/${searchResult.id}/`,
+          id: searchResult.id,
+        },
+      ]
+    }
+
+    return pokemonData.results.map((pokemon, index) => ({
+      ...pokemon,
+      id: (currentPage - 1) * limit + index + 1,
+    }))
+  }, [pokemonData.results, searchResult, currentPage, limit])
+
+  const columns = useMemo<ColumnDef<Pokemon>[]>(
+    () => [
+      columnHelper.accessor("id", {
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-auto p-0 font-semibold"
+          >
+            ID
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="ml-2 h-4 w-4" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="ml-2 h-4 w-4" />
+            ) : (
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            )}
+          </Button>
+        ),
+        cell: ({ getValue }) => <span className="font-mono">#{String(getValue()).padStart(3, "0")}</span>,
+        sortingFn: "basic",
+      }),
+      columnHelper.accessor("name", {
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-auto p-0 font-semibold"
+          >
+            Name
+            {column.getIsSorted() === "asc" ? (
+              <ArrowUp className="ml-2 h-4 w-4" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ArrowDown className="ml-2 h-4 w-4" />
+            ) : (
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            )}
+          </Button>
+        ),
+        cell: ({ getValue }) => <span className="font-medium capitalize">{getValue()}</span>,
+        sortingFn: "alphanumeric",
+      }),
+      columnHelper.display({
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              setSelectedPokemon(row.original.name)
+            }}
+          >
+            View Details
+          </Button>
+        ),
+      }),
+    ],
+    [],
+  )
+
+  const table = useReactTable({
+    data: tableData,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    state: {
+      sorting,
+    },
+    onSortingChange: setSorting,
+    enableSortingRemoval: true,
+  })
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     const params = new URLSearchParams(searchParams.toString())
     if (searchInput.trim()) {
       params.set("search", searchInput.trim())
-      params.delete("page") // Reset to first page when searching
+      params.delete("page")
     } else {
       params.delete("search")
     }
@@ -69,9 +172,7 @@ export default function PokemonTable({ pokemonData, searchResult, currentPage, s
     router.push(`/?${params.toString()}`)
   }
 
-  const displayData = searchResult
-    ? [{ name: searchResult.name, url: `https://pokeapi.co/api/v2/pokemon/${searchResult.id}/` }]
-    : pokemonData.results
+  const totalPages = Math.ceil(pokemonData.count / limit)
 
   return (
     <div className="space-y-4">
@@ -104,44 +205,32 @@ export default function PokemonTable({ pokemonData, searchResult, currentPage, s
         </div>
       )}
 
-      {/* Table */}
+      {/* TanStack Table */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} className="font-semibold">
+                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
           </TableHeader>
           <TableBody>
-            {displayData.map((pokemon, index) => {
-              const pokemonId = pokemon.url.split("/").filter(Boolean).pop()
-              return (
-                <TableRow
-                  key={pokemon.name}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => setSelectedPokemon(pokemon.name)}
-                >
-                  <TableCell className="font-mono">
-                    #{searchResult ? searchResult.id : String((currentPage - 1) * limit + index + 1).padStart(3, "0")}
-                  </TableCell>
-                  <TableCell className="font-medium capitalize">{pokemon.name}</TableCell>
-                  <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedPokemon(pokemon.name)
-                      }}
-                    >
-                      View Details
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
+            {table.getRowModel().rows.map((row) => (
+              <TableRow
+                key={row.id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => setSelectedPokemon(row.original.name)}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                ))}
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>
