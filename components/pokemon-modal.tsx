@@ -7,42 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import EvolutionTriggersTable from "./evolution-triggers-table"
-import PokemonDetailsCard from "./pokemon-details-card"
-import Image from "next/image"
-
-interface PokemonDetails {
-  id: number
-  name: string
-  height: number
-  weight: number
-  base_experience: number
-  types: Array<{
-    type: {
-      name: string
-    }
-  }>
-  abilities: Array<{
-    ability: {
-      name: string
-    }
-    is_hidden: boolean
-  }>
-  stats: Array<{
-    base_stat: number
-    stat: {
-      name: string
-    }
-  }>
-  sprites: {
-    front_default: string
-    front_shiny: string
-    other: {
-      "official-artwork": {
-        front_default: string
-      }
-    }
-  }
-}
+import { PokemonDetails, PokemonDetailsCard } from "./pokemon-details-card"
 
 interface PokemonModalProps {
   pokemonName: string

@@ -4,38 +4,40 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
 
-interface PokemonDetailsCardProps {
-  pokemon: {
-    id: number
-    name: string
-    height: number
-    weight: number
-    base_experience: number
-    types: Array<{
-      type: { name: string }
-    }>
-    abilities: Array<{
-      ability: { name: string }
-      is_hidden: boolean
-    }>
-    stats: Array<{
-      base_stat: number
-      stat: { name: string }
-    }>
-    sprites: {
-      front_default: string
-      front_shiny: string
-      other: {
-        "official-artwork": {
-          front_default: string
-        }
+export interface PokemonDetails {
+  id: number
+  name: string
+  height: number
+  weight: number
+  base_experience: number
+  types: Array<{
+    type: { name: string }
+  }>
+  abilities: Array<{
+    ability: { name: string }
+    is_hidden: boolean
+  }>
+  stats: Array<{
+    base_stat: number
+    stat: { name: string }
+  }>
+  sprites: {
+    front_default: string
+    front_shiny: string
+    other: {
+      "official-artwork": {
+        front_default: string
       }
     }
   }
+}
+
+interface PokemonDetailsCardProps {
+  pokemon: PokemonDetails
   getTypeColor: (type: string) => string
 }
 
-export default function PokemonDetailsCard({ pokemon, getTypeColor }: PokemonDetailsCardProps) {
+export function PokemonDetailsCard({ pokemon, getTypeColor }: PokemonDetailsCardProps) {
   return (
     <>
       <div className="grid md:grid-cols-2 gap-6">
