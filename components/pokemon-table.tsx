@@ -7,25 +7,25 @@ import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
-  flexRender,
   createColumnHelper,
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { DataTable } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { Search } from "lucide-react"
+import { PaginationBar } from "@/components/ui/pagination-bar"
 import PokemonModal from "./pokemon-modal"
 
-interface Pokemon {
+export interface Pokemon {
   name: string
   url: string
   id: number
 }
 
-interface PokemonListResponse {
+export interface PokemonListResponse {
   count: number
   next: string | null
   previous: string | null
@@ -68,67 +68,19 @@ export default function PokemonTable({ pokemonData, searchResult, currentPage, s
     }))
   }, [pokemonData.results, searchResult, currentPage, limit])
 
-  const columns = useMemo<ColumnDef<Pokemon>[]>(
-    () => [
-      columnHelper.accessor("id", {
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="h-auto p-0 font-semibold"
-          >
-            ID
-            {column.getIsSorted() === "asc" ? (
-              <ArrowUp className="ml-2 h-4 w-4" />
-            ) : column.getIsSorted() === "desc" ? (
-              <ArrowDown className="ml-2 h-4 w-4" />
-            ) : (
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            )}
-          </Button>
-        ),
-        cell: ({ getValue }) => <span className="font-mono">#{String(getValue()).padStart(3, "0")}</span>,
-        sortingFn: "basic",
-      }),
-      columnHelper.accessor("name", {
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="h-auto p-0 font-semibold"
-          >
-            Name
-            {column.getIsSorted() === "asc" ? (
-              <ArrowUp className="ml-2 h-4 w-4" />
-            ) : column.getIsSorted() === "desc" ? (
-              <ArrowDown className="ml-2 h-4 w-4" />
-            ) : (
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            )}
-          </Button>
-        ),
-        cell: ({ getValue }) => <span className="font-medium capitalize">{getValue()}</span>,
-        sortingFn: "alphanumeric",
-      }),
-      columnHelper.display({
-        id: "actions",
-        header: "Actions",
-        cell: ({ row }) => (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation()
-              setSelectedPokemon(row.original.name)
-            }}
-          >
-            View Details
-          </Button>
-        ),
-      }),
-    ],
-    [],
-  )
+  // Columns for DataTable
+  const columns: ColumnDef<Pokemon>[] = [
+    {
+      accessorKey: "id",
+      header: "ID",
+      sortingFn: "basic",
+    },
+    {
+      accessorKey: "name",
+      header: "Name",
+      sortingFn: "alphanumeric",
+    },
+  ]
 
   const table = useReactTable({
     data: tableData,
@@ -144,7 +96,7 @@ export default function PokemonTable({ pokemonData, searchResult, currentPage, s
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString())
     if (searchInput.trim()) {
       params.set("search", searchInput.trim())
       params.delete("page")
@@ -155,7 +107,7 @@ export default function PokemonTable({ pokemonData, searchResult, currentPage, s
   }
 
   const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString())
     if (newPage === 1) {
       params.delete("page")
     } else {
@@ -166,7 +118,7 @@ export default function PokemonTable({ pokemonData, searchResult, currentPage, s
 
   const clearSearch = () => {
     setSearchInput("")
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString())
     params.delete("search")
     params.delete("page")
     router.push(`/?${params.toString()}`)
@@ -206,93 +158,18 @@ export default function PokemonTable({ pokemonData, searchResult, currentPage, s
       )}
 
       {/* TanStack Table */}
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="font-semibold">
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => setSelectedPokemon(row.original.name)}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable table={table} onRowClick={(row) => setSelectedPokemon(row.name)} />
 
       {/* Pagination - Only show if not searching */}
       {!searchQuery && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Showing {(currentPage - 1) * limit + 1} to {Math.min(currentPage * limit, pokemonData.count)} of{" "}
-            {pokemonData.count.toLocaleString()} Pokémon
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </Button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum
-                if (totalPages <= 5) {
-                  // If total pages is 5 or less, show all pages
-                  pageNum = i + 1
-                } else if (currentPage <= 3) {
-                  // If current page is near the beginning, show 1-5
-                  pageNum = i + 1
-                } else if (currentPage >= totalPages - 2) {
-                  // If current page is near the end, show last 5 pages
-                  pageNum = totalPages - 4 + i
-                } else {
-                  // If current page is in the middle, show current page ± 2
-                  pageNum = currentPage - 2 + i
-                }
-
-                return (
-                  <Button
-                    key={pageNum}
-                    variant={pageNum === currentPage ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handlePageChange(pageNum)}
-                    className="w-10"
-                  >
-                    {pageNum}
-                  </Button>
-                )
-              })}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <PaginationBar
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          pageSize={limit}
+          totalCount={pokemonData.count}
+          label="Pokémon"
+        />
       )}
 
       {/* Modal */}

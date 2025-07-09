@@ -1,18 +1,8 @@
 import { Suspense } from "react"
 import PokemonTable from "@/components/pokemon-table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-
-interface Pokemon {
-  name: string
-  url: string
-}
-
-interface PokemonListResponse {
-  count: number
-  next: string | null
-  previous: string | null
-  results: Pokemon[]
-}
+import { GetServerSideProps } from "next"
+import type { PokemonListResponse } from "@/components/pokemon-table"
 
 async function fetchPokemon(limit = 20, offset = 0): Promise<PokemonListResponse> {
   const response = await fetch(`https://pokeapi.co/api/v2/pokemon?limit=${limit}&offset=${offset}`)
@@ -34,27 +24,14 @@ async function fetchPokemonByName(name: string) {
   }
 }
 
-interface PageProps {
-  searchParams: { [key: string]: string | string[] | undefined }
+interface HomeProps {
+  pokemonData: PokemonListResponse
+  searchResult: any
+  currentPage: number
+  searchQuery: string
 }
 
-export default async function Home({ searchParams }: PageProps) {
-  const page = Number(searchParams.page) || 1
-  const search = typeof searchParams.search === "string" ? searchParams.search : ""
-  const limit = 20
-  const offset = (page - 1) * limit
-
-  let pokemonData: PokemonListResponse
-  let searchResult = null
-
-  if (search) {
-    // If searching, try to fetch the specific Pokemon
-    searchResult = await fetchPokemonByName(search)
-    // Still fetch the regular list for fallback
-    pokemonData = await fetchPokemon(limit, offset)
-  } else {
-    pokemonData = await fetchPokemon(limit, offset)
-  }
+export default function Home({ pokemonData, searchResult, currentPage, searchQuery }: HomeProps) {
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -77,12 +54,37 @@ export default async function Home({ searchParams }: PageProps) {
             <PokemonTable
               pokemonData={pokemonData}
               searchResult={searchResult}
-              currentPage={page}
-              searchQuery={search}
+              currentPage={currentPage}
+              searchQuery={searchQuery}
             />
           </Suspense>
         </CardContent>
       </Card>
     </div>
   )
+}
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const { query } = context
+  const page = Number(query.page) || 1
+  const search = typeof query.search === "string" ? query.search : ""
+  const limit = 20
+  const offset = (page - 1) * limit
+
+  const pokemonData = await fetchPokemon(limit, offset)
+
+  let searchResult = null
+  if (search) {
+    searchResult = await fetchPokemonByName(search)
+  }
+
+
+  return {
+    props: {
+      pokemonData,
+      searchResult,
+      currentPage: page,
+      searchQuery: search,
+    },
+  }
 }

@@ -10,25 +10,16 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { DataTable } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { PaginationBar } from "@/components/ui/pagination-bar"
 
 interface EvolutionTrigger {
   id: number
   name: string
-  names: Array<{
-    name: string
-    language: {
-      name: string
-    }
-  }>
-  pokemon_species: Array<{
-    name: string
-    url: string
-  }>
 }
 
 interface EvolutionTriggersResponse {
@@ -56,88 +47,16 @@ export default function EvolutionTriggersTable() {
 
   const columns = useMemo<ColumnDef<EvolutionTrigger>[]>(
     () => [
-      columnHelper.accessor("id", {
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="h-auto p-0 font-semibold"
-          >
-            ID
-            {column.getIsSorted() === "asc" ? (
-              <ArrowUp className="ml-2 h-4 w-4" />
-            ) : column.getIsSorted() === "desc" ? (
-              <ArrowDown className="ml-2 h-4 w-4" />
-            ) : (
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            )}
-          </Button>
-        ),
-        cell: ({ getValue }) => <span className="font-mono">#{getValue()}</span>,
+      {
+        accessorKey: "id",
+        header: "ID",
         sortingFn: "basic",
-      }),
-      columnHelper.accessor("name", {
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="h-auto p-0 font-semibold"
-          >
-            Name
-            {column.getIsSorted() === "asc" ? (
-              <ArrowUp className="ml-2 h-4 w-4" />
-            ) : column.getIsSorted() === "desc" ? (
-              <ArrowDown className="ml-2 h-4 w-4" />
-            ) : (
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            )}
-          </Button>
-        ),
-        cell: ({ getValue }) => <span className="font-medium capitalize">{getValue().replace("-", " ")}</span>,
+      },
+      {
+        accessorKey: "name",
+        header: "Name",
         sortingFn: "alphanumeric",
-      }),
-      columnHelper.accessor((row) => row.names.find((n) => n.language.name === "en")?.name || row.name, {
-        id: "displayName",
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="h-auto p-0 font-semibold"
-          >
-            Display Name
-            {column.getIsSorted() === "asc" ? (
-              <ArrowUp className="ml-2 h-4 w-4" />
-            ) : column.getIsSorted() === "desc" ? (
-              <ArrowDown className="ml-2 h-4 w-4" />
-            ) : (
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            )}
-          </Button>
-        ),
-        cell: ({ getValue }) => getValue(),
-        sortingFn: "alphanumeric",
-      }),
-      columnHelper.accessor((row) => row.pokemon_species.length, {
-        id: "speciesCount",
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="h-auto p-0 font-semibold"
-          >
-            Species Count
-            {column.getIsSorted() === "asc" ? (
-              <ArrowUp className="ml-2 h-4 w-4" />
-            ) : column.getIsSorted() === "desc" ? (
-              <ArrowDown className="ml-2 h-4 w-4" />
-            ) : (
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            )}
-          </Button>
-        ),
-        cell: ({ getValue }) => <span className="text-muted-foreground">{getValue()} species</span>,
-        sortingFn: "basic",
-      }),
+      },
     ],
     [],
   )
@@ -169,17 +88,13 @@ export default function EvolutionTriggersTable() {
       const listData: EvolutionTriggersResponse = await listResponse.json()
       setTotalCount(listData.count)
 
-      const detailedTriggers = await Promise.all(
-        listData.results.map(async (trigger) => {
-          const detailResponse = await fetch(trigger.url)
-          if (!detailResponse.ok) {
-            throw new Error(`Failed to fetch details for ${trigger.name}`)
-          }
-          return detailResponse.json()
-        }),
+      // Remove detailed triggers: just set triggers to the list results, mapping to minimal EvolutionTrigger shape
+      setTriggers(
+        listData.results.map((trigger, idx) => ({
+          id: offset + idx + 1,
+          name: trigger.name,
+        }))
       )
-
-      setTriggers(detailedTriggers)
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
     } finally {
@@ -232,87 +147,16 @@ export default function EvolutionTriggersTable() {
         <CardDescription>Methods that can trigger Pokémon evolution ({totalCount} total triggers)</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="border rounded-lg">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} className="font-semibold">
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable table={table} />
 
-        {/* Pagination */}
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Showing {offset + 1} to {Math.min(offset + limit, totalCount)} of {totalCount} triggers
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </Button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum
-                if (totalPages <= 5) {
-                  // If total pages is 5 or less, show all pages
-                  pageNum = i + 1
-                } else if (currentPage <= 3) {
-                  // If current page is near the beginning, show 1-5
-                  pageNum = i + 1
-                } else if (currentPage >= totalPages - 2) {
-                  // If current page is near the end, show last 5 pages
-                  pageNum = totalPages - 4 + i
-                } else {
-                  // If current page is in the middle, show current page ± 2
-                  pageNum = currentPage - 2 + i
-                }
-
-                return (
-                  <Button
-                    key={pageNum}
-                    variant={pageNum === currentPage ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handlePageChange(pageNum)}
-                    className="w-10"
-                  >
-                    {pageNum}
-                  </Button>
-                )
-              })}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <PaginationBar
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          pageSize={limit}
+          totalCount={totalCount}
+          label="triggers"
+        />
       </CardContent>
     </Card>
   )
