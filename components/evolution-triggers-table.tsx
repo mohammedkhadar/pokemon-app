@@ -5,7 +5,6 @@ import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
-  flexRender,
   createColumnHelper,
   type ColumnDef,
   type SortingState,
@@ -14,8 +13,7 @@ import { DataTable } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
-import { PaginationBar } from "@/components/ui/pagination-bar"
+import { Pagination } from "@/components/pagination"
 
 interface EvolutionTrigger {
   id: number
@@ -149,7 +147,7 @@ export default function EvolutionTriggersTable() {
       <CardContent className="space-y-4">
         <DataTable table={table} />
 
-        <PaginationBar
+        <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={handlePageChange}
