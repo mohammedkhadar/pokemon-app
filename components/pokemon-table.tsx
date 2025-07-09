@@ -154,14 +154,16 @@ export default function PokemonTable({ currentPage, searchQuery, pokemonData }: 
 
       {/* Pagination - Only show if not searching */}
       {!searchQuery && pokemonData && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-          pageSize={limit}
-          totalCount={pokemonData.count}
-          label="Pokémon"
-        />
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            pageSize={limit}
+            totalCount={pokemonData.count}
+            label="Pokémon"
+          />
+        </div>
       )}
 
       {/* Modal */}
