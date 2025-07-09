@@ -1,13 +1,11 @@
-"use client"
-
 import type React from "react"
 import { useState, useMemo } from "react"
+import type { Pokemon, PokemonListResponse } from "@/types/pokemon"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
-  createColumnHelper,
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table"
@@ -19,54 +17,40 @@ import { Search } from "lucide-react"
 import { Pagination } from "@/components/pagination"
 import PokemonModal from "./pokemon-modal"
 
-export interface Pokemon {
-  name: string
-  url: string
-  id: number
-}
-
-export interface PokemonListResponse {
-  count: number
-  next: string | null
-  previous: string | null
-  results: Pokemon[]
-}
-
 interface PokemonTableProps {
-  pokemonData: PokemonListResponse
-  searchResult: any
   currentPage: number
   searchQuery: string
+  pokemonData: PokemonListResponse | null
 }
 
-const columnHelper = createColumnHelper<Pokemon>()
-
-export default function PokemonTable({ pokemonData, searchResult, currentPage, searchQuery }: PokemonTableProps) {
+export default function PokemonTable({ currentPage, searchQuery, pokemonData }: PokemonTableProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [selectedPokemon, setSelectedPokemon] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState(searchQuery)
   const [sorting, setSorting] = useState<SortingState>([])
 
-  const limit = 20
+  const limit = 10
+
+  const isLoading = !pokemonData
+  const error = null // SSR errors handled in getServerSideProps
 
   // Transform data to include IDs for TanStack Table
   const tableData = useMemo(() => {
-    if (searchResult) {
-      return [
-        {
-          name: searchResult.name,
-          url: `https://pokeapi.co/api/v2/pokemon/${searchResult.id}/`,
-          id: searchResult.id,
-        },
-      ]
+    if (!pokemonData) return []
+    if (pokemonData && pokemonData.results && searchQuery && pokemonData.results.length === 1) {
+      const result = pokemonData.results[0]
+      return [{
+        name: result.name,
+        url: result.url,
+        id: result.id || 1,
+      }]
     }
-
     return pokemonData.results.map((pokemon, index) => ({
       ...pokemon,
       id: (currentPage - 1) * limit + index + 1,
     }))
-  }, [pokemonData.results, searchResult, currentPage, limit])
+  }, [pokemonData, currentPage, limit, searchQuery])
 
   // Columns for DataTable
   const columns: ColumnDef<Pokemon>[] = [
@@ -124,7 +108,15 @@ export default function PokemonTable({ pokemonData, searchResult, currentPage, s
     router.push(`/?${params.toString()}`)
   }
 
-  const totalPages = Math.ceil(pokemonData.count / limit)
+  const totalPages = pokemonData ? Math.ceil(pokemonData.count / limit) : 1
+
+  if (isLoading) {
+    return <div className="py-8 text-center">Loading Pokémon...</div>
+  }
+
+  if (error) {
+    return <div className="py-8 text-center text-destructive">Error loading Pokémon data.</div>
+  }
 
   return (
     <div className="space-y-4">
@@ -151,8 +143,8 @@ export default function PokemonTable({ pokemonData, searchResult, currentPage, s
       {/* Search Results Info */}
       {searchQuery && (
         <div className="flex items-center gap-2">
-          <Badge variant={searchResult ? "default" : "destructive"}>
-            {searchResult ? `Found: ${searchResult.name}` : `No results for "${searchQuery}"`}
+          <Badge variant={tableData.length ? "default" : "destructive"}>
+            {tableData.length ? `Found: ${tableData[0].name}` : `No results for "${searchQuery}"`}
           </Badge>
         </div>
       )}
@@ -161,7 +153,7 @@ export default function PokemonTable({ pokemonData, searchResult, currentPage, s
       <DataTable table={table} onRowClick={(row) => setSelectedPokemon(row.name)} />
 
       {/* Pagination - Only show if not searching */}
-      {!searchQuery && (
+      {!searchQuery && pokemonData && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}

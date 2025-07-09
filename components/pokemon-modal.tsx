@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { fetchPokemonDetails } from "@/lib/api/pokemon-details"
+import { getTypeColor } from "@/lib/utils"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
-import EvolutionTriggersTable from "./evolution-triggers-table"
-import { PokemonDetails, PokemonDetailsCard } from "./pokemon-details-card"
+import EvolutionTriggersTable from "./evolution-table"
+import { PokemonDetails, PokemonDetailsCard } from "./pokemon-details"
+
 
 interface PokemonModalProps {
   pokemonName: string
@@ -16,56 +17,17 @@ interface PokemonModalProps {
 }
 
 export default function PokemonModal({ pokemonName, isOpen, onClose }: PokemonModalProps) {
-  const [pokemon, setPokemon] = useState<PokemonDetails | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    data: pokemon,
+    isLoading: loading,
+    error,
+  } = useQuery<PokemonDetails, Error>({
+    queryKey: ["pokemon-details", pokemonName],
+    queryFn: () => fetchPokemonDetails(pokemonName),
+    enabled: isOpen && !!pokemonName,
+    refetchOnWindowFocus: false,
+  })
 
-  useEffect(() => {
-    if (isOpen && pokemonName) {
-      fetchPokemonDetails()
-    }
-  }, [isOpen, pokemonName])
-
-  const fetchPokemonDetails = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonName.toLowerCase()}`)
-      if (!response.ok) {
-        throw new Error("Failed to fetch Pokemon details")
-      }
-      const data = await response.json()
-      setPokemon(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const getTypeColor = (type: string) => {
-    const colors: { [key: string]: string } = {
-      normal: "bg-gray-400",
-      fire: "bg-red-500",
-      water: "bg-blue-500",
-      electric: "bg-yellow-400",
-      grass: "bg-green-500",
-      ice: "bg-blue-200",
-      fighting: "bg-red-700",
-      poison: "bg-purple-500",
-      ground: "bg-yellow-600",
-      flying: "bg-indigo-400",
-      psychic: "bg-pink-500",
-      bug: "bg-green-400",
-      rock: "bg-yellow-800",
-      ghost: "bg-purple-700",
-      dragon: "bg-indigo-700",
-      dark: "bg-gray-800",
-      steel: "bg-gray-500",
-      fairy: "bg-pink-300",
-    }
-    return colors[type] || "bg-gray-400"
-  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -85,7 +47,7 @@ export default function PokemonModal({ pokemonName, isOpen, onClose }: PokemonMo
 
         {error && (
           <div className="text-center py-8">
-            <p className="text-destructive">Error: {error}</p>
+            <p className="text-destructive">Error: {error instanceof Error ? error.message : String(error)}</p>
           </div>
         )}
 
@@ -109,3 +71,4 @@ export default function PokemonModal({ pokemonName, isOpen, onClose }: PokemonMo
     </Dialog>
   )
 }
+
