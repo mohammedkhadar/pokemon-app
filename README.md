@@ -1,5 +1,11 @@
 # Pokémon React App
 
+## Things to improve
+ - Test coverage
+ - search string sanitization for security
+ - Add caching for server side rendered pages
+ - Update Typescript types: remove any types
+
 *Automatically synced with your [v0.dev](https://v0.dev) deployments*
 
 [![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/mohammed-khans-projects/v0-pokemon-react-app)
